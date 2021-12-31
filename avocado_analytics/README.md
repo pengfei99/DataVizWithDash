@@ -254,3 +254,211 @@ html.H1(
 ```
 
 **Note with this approach, you can reuse the style for any number of the dash component as long as you want these components to have the same style**
+
+### 2.2 Add external style code to the avocado project
+
+We created a directory assets, and put the favicon.ico and style.css in to this folder
+
+<details>
+<summary>style.css</summary>
+<p>
+
+```css
+body {
+    font-family: "Lato", sans-serif;
+    margin: 0;
+    background-color: #F7F7F7;
+}
+
+.header {
+    background-color: #222222;
+    height: 288px;
+    padding: 16px 0 0 0;
+}
+
+.header-emoji {
+    font-size: 48px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.header-title {
+    color: #FFFFFF;
+    font-size: 48px;
+    font-weight: bold;
+    text-align: center;
+    margin: 0 auto;
+}
+
+.header-description {
+    color: #CFCFCF;
+    margin: 4px auto;
+    text-align: center;
+    max-width: 384px;
+}
+
+.wrapper {
+    margin-right: auto;
+    margin-left: auto;
+    max-width: 1024px;
+    padding-right: 10px;
+    padding-left: 10px;
+    margin-top: 32px;
+}
+
+.card {
+    margin-bottom: 24px;
+    box-shadow: 0 4px 6px 0 rgba(0, 0, 0, 0.18);
+}
+
+.menu {
+    height: 112px;
+    width: 912px;
+    display: flex;
+    justify-content: space-evenly;
+    padding-top: 24px;
+    margin: -80px auto 0 auto;
+    background-color: #FFFFFF;
+    box-shadow: 0 4px 6px 0 rgba(0, 0, 0, 0.18);
+}
+
+.Select-control {
+    width: 256px;
+    height: 48px;
+}
+
+.Select--single > .Select-control .Select-value, .Select-placeholder {
+    line-height: 48px;
+}
+
+.Select--multi .Select-value-label {
+    line-height: 32px;
+}
+
+.menu-title {
+    margin-bottom: 6px;
+    font-weight: bold;
+    color: #079A82;
+}
+```
+
+
+</p>
+</details>  
+
+
+After adding these two files, once you start the server, **Dash will automatically serve the files located in assets/**. 
+For setting a default favicon, you don’t have to take any additional steps. For using the styles you defined in 
+style.css, you’ll need to use the className argument in Dash components.
+
+### 2.2.1 Include external style sheet
+To include an external style sheet, you need to add following code in app.py
+
+```python
+external_stylesheets = [
+    {
+        "href": "https://fonts.googleapis.com/css2?"
+                "family=Lato:wght@400;700&display=swap",
+        "rel": "stylesheet",
+    },
+]
+```
+With the above code, you specify an external CSS file, a font family, that you want to load in your application. 
+External files are added to the head tag of your application and loaded before the body of your application loads. 
+You use the external_stylesheets argument for adding external CSS files or external_scripts for external JavaScript 
+files like Google Analytics.
+
+### 2.2.2 Add a title to the browser nav bar
+To add a title to your dashboard on the browser nav bar, add the following code in app.py. This is the text that 
+appears in the title bar of your web browser, in Google’s search results, and in social media cards when you share 
+your site.
+
+```python
+app.title = "Avocado Analytics: Understand Your Avocados!"
+```
+### 2.2.3 Apply style defined in your style.css 
+To use the styles in style.css, you’ll need to use the className argument in Dash components. The code below adds a 
+className with a corresponding class selector to each of the components that compose the header of your dashboard:
+
+```python
+app.layout = html.Div(
+   children=[
+      # 1st html div
+      html.Div(
+         children=[
+            # add a new component which is the logo
+            html.P(children="🥑", className="header-emoji"),
+            html.H1(
+               children="Avocado Analytics",
+               # use a css class to customize the style of this header h1
+               className="header-title"
+            ),
+            html.P(
+               children="Analyze the behavior of avocado prices"
+                        " and the number of avocados sold in the US"
+                        " between 2015 and 2018",
+               # use a css class to customize the style of this paragraph
+               className="header-description",
+```
+
+For example, the header-description class assigned to the paragraph component starting with "Analyze the behavior 
+of avocado prices" has a corresponding selector in style.css:
+```css
+.header-description {
+color: #CFCFCF;
+margin: 4px auto;
+text-align: center;
+max-width: 384px;
+}
+```
+
+**The other significant change is in the graphs**. Here’s the new code for the price chart:
+```python
+html.Div(
+   children=[
+      html.Div(
+         children=dcc.Graph(
+            id="price-chart",
+            # You remove the floating bar that Plotly shows by default.
+            config={"displayModeBar": False},
+            figure={
+               "data": [
+                  {
+                     "x": data["Date"],
+                     "y": data["AveragePrice"],
+                     "type": "lines",
+                     # set the hover template so that when users hover over a data point, it shows 
+                     # the price in dollars. Instead of 2.5, it’ll show as $2.5.
+                     "hovertemplate": "$%{y:.2f}"
+                                      "<extra></extra>",
+                  },
+               ],
+               # Define new layout of the graph
+               # adjust the axis, the color of the figure, and the title format.
+               "layout": {
+                  "title": {
+                     "text": "Average Price of Avocados",
+                     "x": 0.05,
+                     "xanchor": "left",
+                  },
+                  "xaxis": {"fixedrange": True},
+                  "yaxis": {
+                     "tickprefix": "$",
+                     "fixedrange": True,
+                  },
+                  "colorway": ["#17B897"],
+               },
+            },
+         ),
+         #  The card class wrap the graph in an html.Div with a "card" class. This will give the graph 
+         #  a white background and add a small shadow below it.
+         className="card",
+      ),
+```
+
+In this code, you define a className and a few customizations for the config and figure parameters of your chart. 
+Here are the changes:
+1. remove the floating bar that Plotly shows by default.
+2. set the hover template so that when users hover over a data point, it shows the price in dollars. Instead of 2.5, it’ll show as $2.5.
+3. adjust the axis, the color of the figure, and the title format in the layout section of the graph.
+4. wrap the graph in an html.Div with a "card" class. This will give the graph a white background and add a small shadow below it.
