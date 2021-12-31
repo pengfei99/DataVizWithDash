@@ -72,4 +72,5 @@ app.layout = html.Div(
 )
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    # use the embedded server to run the app, with logging level = debug, multi thread, at port 8050(default)
+    app.run_server(debug=True,threaded=True, port=8050)
