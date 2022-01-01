@@ -2,6 +2,8 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
+import numpy as np
+from dash.dependencies import Output, Input
 
 # dash helps you initialize your application.
 # dash_core_components allows you to create interactive components like graphs, dropdowns, or date ranges.
@@ -12,7 +14,9 @@ import pandas as pd
 data = pd.read_csv("data/avocado.csv")
 
 # transform data so dash can render them correctly
-data = data.query("type == 'conventional' and region == 'Albany'")
+# the data filter can be removed after we add user interactive data filter
+# data = data.query("type == 'conventional' and region == 'Albany'")
+# convert string to date
 data["Date"] = pd.to_datetime(data["Date"], format="%Y-%m-%d")
 data.sort_values("Date", inplace=True)
 
@@ -28,7 +32,9 @@ external_stylesheets = [
 # create an instance of the Dash class. If you’ve used Flask before, then initializing a Dash class may look
 # familiar. In Flask, you usually initialize a WSGI application using Flask(__name__). Similarly, for a Dash app,
 # you use Dash(__name__).
-app = dash.Dash(__name__)
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+
+server = app.server
 
 # add a title to your dash app
 app.title = "Avocado Analytics: Understand Your Avocados!"
@@ -48,7 +54,7 @@ app.title = "Avocado Analytics: Understand Your Avocados!"
 #   it to create interactive elements such as graphs, sliders, or dropdowns.
 app.layout = html.Div(
     children=[
-        # 1st html div
+        # 1st html div for showing the site header
         html.Div(
             children=[
                 # add a new component which is the logo
@@ -69,73 +75,73 @@ app.layout = html.Div(
             # use a css class to customize the style of this header div
             className="header",
         ),
-        # 2nd html div
+        # 2nd div for the data filtering menu
+        html.Div(
+            children=[
+                html.Div(
+                    children=[
+                        html.Div(children="Region", className="menu-title"),
+                        dcc.Dropdown(
+                            id="region-filter",
+                            options=[
+                                {"label": region, "value": region}
+                                for region in np.sort(data.region.unique())
+                            ],
+                            value="Albany",
+                            clearable=False,
+                            className="dropdown",
+                        ),
+                    ]
+                ),
+                html.Div(
+                    children=[
+                        html.Div(children="Type", className="menu-title"),
+                        dcc.Dropdown(
+                            id="type-filter",
+                            options=[
+                                {"label": avocado_type, "value": avocado_type}
+                                for avocado_type in data.type.unique()
+                            ],
+                            value="organic",
+                            clearable=False,
+                            searchable=False,
+                            className="dropdown",
+                        ),
+                    ],
+                ),
+                html.Div(
+                    children=[
+                        html.Div(
+                            children="Date Range",
+                            className="menu-title"
+                        ),
+                        dcc.DatePickerRange(
+                            id="date-range",
+                            min_date_allowed=data.Date.min().date(),
+                            max_date_allowed=data.Date.max().date(),
+                            start_date=data.Date.min().date(),
+                            end_date=data.Date.max().date(),
+                        ),
+                    ]
+                ),
+            ],
+            className="menu",
+        ),
+        # 3rd div for the two graphs
         html.Div(
             children=[
                 html.Div(
                     children=dcc.Graph(
                         id="price-chart",
-                        # You remove the floating bar that Plotly shows by default.
                         config={"displayModeBar": False},
-                        figure={
-                            "data": [
-                                {
-                                    "x": data["Date"],
-                                    "y": data["AveragePrice"],
-                                    "type": "lines",
-                                    # set the hover template so that when users hover over a data point, it shows
-                                    # the price in dollars. Instead of 2.5, it’ll show as $2.5.
-                                    "hovertemplate": "$%{y:.2f}"
-                                                     "<extra></extra>",
-                                },
-                            ],
-                            # Define new layout of the graph
-                            # adjust the axis, the color of the figure, and the title format.
-                            "layout": {
-                                "title": {
-                                    "text": "Average Price of Avocados",
-                                    "x": 0.05,
-                                    "xanchor": "left",
-                                },
-                                "xaxis": {"fixedrange": True},
-                                "yaxis": {
-                                    "tickprefix": "$",
-                                    "fixedrange": True,
-                                },
-                                "colorway": ["#17B897"],
-                            },
-                        },
                     ),
-                    #  The card class wrap the graph in an html.Div with a "card" class. This will give the graph
-                    #  a white background and add a small shadow below it.
                     className="card",
                 ),
                 html.Div(
                     children=dcc.Graph(
                         id="volume-chart",
                         config={"displayModeBar": False},
-                        figure={
-                            "data": [
-                                {
-                                    "x": data["Date"],
-                                    "y": data["Total Volume"],
-                                    "type": "lines",
-                                },
-                            ],
-                            "layout": {
-                                "title": {
-                                    "text": "Avocados Sold",
-                                    "x": 0.05,
-                                    "xanchor": "left",
-                                },
-                                "xaxis": {"fixedrange": True},
-                                "yaxis": {"fixedrange": True},
-                                "colorway": ["#E12D39"],
-                            },
-                        },
                     ),
-                    #  The card class wrap the graph in an html.Div with a "card" class. This will give the graph
-                    #  a white background and add a small shadow below it.
                     className="card",
                 ),
             ],
@@ -143,6 +149,65 @@ app.layout = html.Div(
         ),
     ]
 )
+
+
+################################5. defining call back functions###########################################
+@app.callback(
+    #  define the inputs and outputs of the callback
+    [Output("price-chart", "figure"), Output("volume-chart", "figure")],
+    [
+        Input("region-filter", "value"),
+        Input("type-filter", "value"),
+        Input("date-range", "start_date"),
+        Input("date-range", "end_date"),
+    ],
+)
+def update_charts(region, avocado_type, start_date, end_date):
+    mask = (
+            (data.region == region)
+            & (data.type == avocado_type)
+            & (data.Date >= start_date)
+            & (data.Date <= end_date)
+    )
+    filtered_data = data.loc[mask, :]
+    # print(filtered_data.head())
+    price_chart_figure = {
+        "data": [
+            {
+                "x": filtered_data["Date"],
+                "y": filtered_data["AveragePrice"],
+                "type": "lines",
+                "hovertemplate": "$%{y:.2f}<extra></extra>",
+            },
+        ],
+        "layout": {
+            "title": {
+                "text": "Average Price of Avocados",
+                "x": 0.05,
+                "xanchor": "left",
+            },
+            "xaxis": {"fixedrange": True},
+            "yaxis": {"tickprefix": "$", "fixedrange": True},
+            "colorway": ["#17B897"],
+        },
+    }
+
+    volume_chart_figure = {
+        "data": [
+            {
+                "x": filtered_data["Date"],
+                "y": filtered_data["Total Volume"],
+                "type": "lines",
+            },
+        ],
+        "layout": {
+            "title": {"text": "Avocados Sold", "x": 0.05, "xanchor": "left"},
+            "xaxis": {"fixedrange": True},
+            "yaxis": {"fixedrange": True},
+            "colorway": ["#E12D39"],
+        },
+    }
+    return price_chart_figure, volume_chart_figure
 
 
 if __name__ == "__main__":
