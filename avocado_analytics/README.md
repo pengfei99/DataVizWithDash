@@ -462,3 +462,15 @@ Here are the changes:
 2. set the hover template so that when users hover over a data point, it shows the price in dollars. Instead of 2.5, it’ll show as $2.5.
 3. adjust the axis, the color of the figure, and the title format in the layout section of the graph.
 4. wrap the graph in an html.Div with a "card" class. This will give the graph a white background and add a small shadow below it.
+
+
+## 2.3 Create Interactive Components
+
+### 2.3.1 Add interactive component
+To allow user input arguments, we need to create components that users can interact with. For that, we include a new 
+**html.Div** above your charts. It’ll include 
+- two dropdowns
+  
+- a date range selector 
+  
+With these components, the user can give argument to filter the data and update the graphs.

@@ -76,3 +76,4 @@ For development purposes, it’s useful to think of the process of building a Da
 - Define the looks of your application using the app’s layout.
 - Use callbacks to determine which parts of your app are interactive and what they react to.
 
+The [avocado analytics](avocado_analytics/README.md) shows a simple example
