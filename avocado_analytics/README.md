@@ -466,11 +466,368 @@ Here are the changes:
 
 ## 2.3 Create Interactive Components
 
-### 2.3.1 Add interactive component
+### 2.3.1 Add interactive components
 To allow user input arguments, we need to create components that users can interact with. For that, we include a new 
-**html.Div** above your charts. It’ll include 
+**html.Div** (interactive menu) above your charts. It’ll include 
 - two dropdowns
   
 - a date range selector 
   
 With these components, the user can give argument to filter the data and update the graphs.
+
+To do so, we need to add the following dash component to the app layout.
+```python
+
+html.Div(
+    children=[
+        html.Div(
+            children=[
+                html.Div(children="Region", className="menu-title"),
+                dcc.Dropdown(
+                    id="region-filter",
+                    options=[
+                        {"label": region, "value": region}
+                        for region in np.sort(data.region.unique())
+                    ],
+                    value="Albany",
+                    clearable=False,
+                    className="dropdown",
+                ),
+            ]
+        ),
+        html.Div(
+            children=[
+                html.Div(children="Type", className="menu-title"),
+                dcc.Dropdown(
+                    id="type-filter",
+                    options=[
+                        {"label": avocado_type, "value": avocado_type}
+                        for avocado_type in data.type.unique()
+                    ],
+                    value="organic",
+                    clearable=False,
+                    searchable=False,
+                    className="dropdown",
+                ),
+            ],
+        ),
+        html.Div(
+            children=[
+                html.Div(
+                    children="Date Range",
+                    className="menu-title"
+                    ),
+                dcc.DatePickerRange(
+                    id="date-range",
+                    min_date_allowed=data.Date.min().date(),
+                    max_date_allowed=data.Date.max().date(),
+                    start_date=data.Date.min().date(),
+                    end_date=data.Date.max().date(),
+                ),
+            ]
+        ),
+    ],
+    className="menu",
+),
+```
+
+Note, we already have three html div in the layout (e.g. one header, two graph). We will add one more html div to hold
+the interactive components, this div contains three sub div, we will examine them one by one.
+
+And **the order of div in app layout matters**. We need to insert this new div between the header and graphs
+
+#### 2.3.1.1 The region and type dropdown box
+
+The first component in the menu is the **Region dropdown**. This will allow users to filter data by selecting a specific
+region. Here’s the code for that component:
+```python
+html.Div(
+    children=[
+       # the title of the menu
+        html.Div(children="Region", className="menu-title"),
+       # Dropdown is a predefined dash component 
+        dcc.Dropdown(
+            id="region-filter",
+            options=[
+                {"label": region, "value": region}
+                for region in np.sort(data.region.unique())
+            ],
+            value="Albany",
+            clearable=False,
+            className="dropdown",
+        ),
+    ]
+),
+```
+You can notice, we called **a dash component dcc.Dropdown**. It has following parameters:
+- id : is the identifier of this component. 
+- options: is the options shown when the dropdown is selected. It expects a dictionary with labels and values. 
+  
+- value: is the default value when the page loads.
+  
+- clearable allows the user to leave this field empty if set to True.
+  
+- className is a class selector used for applying styles.
+
+The type selector is another dropbox which uses the same parameters as the above region selector
+
+#### 2.3.1.2 The date selector
+
+The date selector allows user to filter data by their date. Below is the code:
+```python
+html.Div(
+            children=[
+               # the title of the menu
+                html.Div(
+                    children="Date Range",
+                    className="menu-title"
+                    ),
+               # DatePickerRange is a dash component
+                dcc.DatePickerRange(
+                    id="date-range",
+                    min_date_allowed=data.Date.min().date(),
+                    max_date_allowed=data.Date.max().date(),
+                    start_date=data.Date.min().date(),
+                    end_date=data.Date.max().date(),
+                ),
+            ]
+        ),
+```
+
+Note, here we used **dcc.DatePickerRange** which is another dash component, it has following parameters:
+- id : is the identifier of this component. 
+- min_date_allowed: set the min bound of the date that users can choose 
+- max_date_allowed: set the max bound of the date that users can choose
+- start_date: is the default start date value when the page loads.
+- end_date: is the default end date value when the page loads.
+
+### 2.3.2 Make the graph dynamic
+
+In previous version, the two graph is static. Now we need them to be dynamic, which means they will be refreshed after
+users change the value in the filter menu. Below is the new div for the two graphs
+
+```python
+html.Div(
+            children=[
+                html.Div(
+                    children=dcc.Graph(
+                        id="price-chart",
+                        config={"displayModeBar": False},
+                    ),
+                    className="card",
+                ),
+                html.Div(
+                    children=dcc.Graph(
+                        id="volume-chart",
+                        config={"displayModeBar": False},
+                    ),
+                    className="card",
+                ),
+            ],
+            className="wrapper",
+        ),
+```
+
+You can notice compare to older version, it does not have the **parameter figure**.  That’s because the figure 
+argument will now be generated by a callback function using the inputs the user sets using the Region, Type, and Date 
+Range selectors.
+
+### 2.3.3 Add the call back functions
+
+Now we need to make your application generate new graph when users change value in the data filter menu. For that, 
+we will use callback functions.
+
+**Dash’s callback functions are regular Python functions with an app.callback decorator.** In Dash, 
+when an input changes, a callback function is triggered. The function performs some predetermined operations, 
+like filtering a dataset, and returns an output to the application. You can consider callback as a **controller in the
+MVC paradigm**. It takes user input and data, apply the business logic that you defined on the input and data, then return
+some new data as output for the app to render.
+
+Here’s the callback function used for updating the graphs:
+```python
+@app.callback(
+    [Output("price-chart", "figure"), Output("volume-chart", "figure")],
+    [
+        Input("region-filter", "value"),
+        Input("type-filter", "value"),
+        Input("date-range", "start_date"),
+        Input("date-range", "end_date"),
+    ],
+)
+def update_charts(region, avocado_type, start_date, end_date):
+    mask = (
+        (data.region == region)
+        & (data.type == avocado_type)
+        & (data.Date >= start_date)
+        & (data.Date <= end_date)
+    )
+    filtered_data = data.loc[mask, :]
+    price_chart_figure = {
+        "data": [
+            {
+                "x": filtered_data["Date"],
+                "y": filtered_data["AveragePrice"],
+                "type": "lines",
+                "hovertemplate": "$%{y:.2f}<extra></extra>",
+            },
+        ],
+        "layout": {
+            "title": {
+                "text": "Average Price of Avocados",
+                "x": 0.05,
+                "xanchor": "left",
+            },
+            "xaxis": {"fixedrange": True},
+            "yaxis": {"tickprefix": "$", "fixedrange": True},
+            "colorway": ["#17B897"],
+        },
+    }
+
+    volume_chart_figure = {
+        "data": [
+            {
+                "x": filtered_data["Date"],
+                "y": filtered_data["Total Volume"],
+                "type": "lines",
+            },
+        ],
+        "layout": {
+            "title": {
+                "text": "Avocados Sold",
+                "x": 0.05,
+                "xanchor": "left"
+            },
+            "xaxis": {"fixedrange": True},
+            "yaxis": {"fixedrange": True},
+            "colorway": ["#E12D39"],
+        },
+    }
+    return price_chart_figure, volume_chart_figure
+```
+You can notice, the callback function has two main parts:
+- input and output declaration
+- function that holds the logic of data transformation and data rendering
+
+#### 2.3.3.1 Define the inputs and outputs of a callback function 
+
+Inside the app.callback decorator, we have a list of the inputs and outputs. 
+
+```python
+@app.callback(
+   # list of the output objects 
+   [  
+      Output("price-chart", "figure"), 
+      Output("volume-chart", "figure")
+   ],
+
+   # list of the input objects
+   [
+        Input("region-filter", "value"),
+        Input("type-filter", "value"),
+        Input("date-range", "start_date"),
+        Input("date-range", "end_date"),
+    ],
+)
+```
+---
+**NOTE**
+
+The Input object discussed here is imported from **dash.dependencies**. Be careful not to confuse it with the component 
+coming from **dash_core_components**. These objects are not interchangeable and have different purposes.
+
+---
+##### Output objects 
+You can notice each output object takes two arguments:
+
+1. The identifier of the **dash component (in the app.layout)** that they’ll modify when the function executes
+2. The property of the component to be modified
+
+For example, Output("price-chart", "figure") will **update the figure property of the "price-chart" element**.
+
+##### Input objects
+The input objects also take two arguments:
+
+1. The identifier of the component they’ll be watching for changes
+2. The **property of the watched component** that they should take when a change happens
+
+So, Input("region-filter", "value") will watch **the value property of the "region-filter" component** for changes 
+if the element changes.
+
+#### 2.3.3.2 Define the logic of a callback function 
+
+```python
+def update_charts(region, avocado_type, start_date, end_date):
+   # create a data filter based on user input
+    mask = (
+        (data.region == region)
+        & (data.type == avocado_type)
+        & (data.Date >= start_date)
+        & (data.Date <= end_date)
+    )
+   # get filtered data
+    filtered_data = data.loc[mask, :]
+   # render the price charts by using the filtered data 
+    price_chart_figure = {
+        "data": [
+            {
+                "x": filtered_data["Date"],
+                "y": filtered_data["AveragePrice"],
+                "type": "lines",
+                "hovertemplate": "$%{y:.2f}<extra></extra>",
+            },
+        ],
+        "layout": {
+            "title": {
+                "text": "Average Price of Avocados",
+                "x": 0.05,
+                "xanchor": "left",
+            },
+            "xaxis": {"fixedrange": True},
+            "yaxis": {"tickprefix": "$", "fixedrange": True},
+            "colorway": ["#17B897"],
+        },
+    }
+   # render the volume chart by using the filtered data 
+    volume_chart_figure = {
+        "data": [
+            {
+                "x": filtered_data["Date"],
+                "y": filtered_data["Total Volume"],
+                "type": "lines",
+            },
+        ],
+        "layout": {
+            "title": {
+                "text": "Avocados Sold",
+                "x": 0.05,
+                "xanchor": "left"
+            },
+            "xaxis": {"fixedrange": True},
+            "yaxis": {"fixedrange": True},
+            "colorway": ["#E12D39"],
+        },
+    }
+    return price_chart_figure, volume_chart_figure
+```
+The function **update_charts (the name can be changed to any valid python function name)** will be applied when an 
+input changes. 
+
+The logic of this function is pretty simple:
+1. filter data based on user input (region, type of avocado, and date range)
+2. render the price and volume charts by using the filtered data 
+
+
+---
+**IMPOTENT NOTE**
+
+**The arguments and return object of the function must correspond the order of the input and output declared in the callback decorator**
+
+---
+
+Because there’s no explicit relationship definition between the names of the arguments in the function, and the values 
+specified in the Input objects. For example if I change the order of region, avocado_type. The avocado_type will get
+the value of region menu, the region will the value of avocado_type.
+
+It's the same thing for the output object of the function, and the output declared inside the callback decorator.
+For example, if I change the order of price_chart_figure, volume_chart_figure. In the html page, the price_chart will
+get the figure of volume_chart.
