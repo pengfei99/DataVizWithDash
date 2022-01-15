@@ -8,6 +8,7 @@ authors = ["pengfei <liu.pengfei@hotmail.fr>"]
 python = "^3.8"
 dash = "^2.0.0"
 pandas = "^1.3.5"
+openpyxl = "^3.0.9"
 
 [tool.poetry.dev-dependencies]
 
