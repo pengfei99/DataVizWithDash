@@ -77,3 +77,10 @@ For development purposes, it’s useful to think of the process of building a Da
 - Use callbacks to determine which parts of your app are interactive and what they react to.
 
 The [avocado analytics](avocado_analytics/README.md) shows a simple example
+
+### 2.4 Sales performance dashboard
+
+In the avocado analytic project, we have learned how to create a single page dashboard. In the Sales performance 
+dashboard project, we will develop a multi-page dashboard.
+
+For more details, please check [Sales performance dashboard](sales_performance/README.md)
