@@ -28,14 +28,14 @@ def get_dataframe(table_name: str):
     db_name = os.getenv("DB_NAME")
     db_location = f"{db_url}:{db_port}/{db_name}"
     engine = sa.create_engine(f'postgresql://{db_login}:{db_pwd}@{db_location}')
+    df = None
     try:
         db_connection = engine.connect()
         df = pd.read_sql(f"select * from {table_name}", db_connection)
     except Exception as e:
         pass
-    else:
+    if df is None:
         df = default_df()
-
     return df
 
 
@@ -91,7 +91,7 @@ app.layout = html.Div(
                     className="header-title"
                 ),
                 html.P(
-                    children="Analyze the statistics of pokemon",
+                    children="Get the best pokemon by their type",
                     # use a css class to customize the style of this paragraph
                     className="header-description",
                 ),
